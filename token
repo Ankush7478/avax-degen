@@ -1,0 +1,78 @@
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.0;
+
+import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
+import "@openzeppelin/contracts/access/Ownable.sol";
+import "@openzeppelin/contracts/token/ERC20/extensions/ERC20Burnable.sol";
+
+contract Token is ERC20, Ownable, ERC20Burnable {
+    event LogMessage(string message);
+
+    struct Apparel {
+        string apparelType;
+        uint256 apparelFee;
+        uint256 apparelInventory;
+    }
+
+    mapping(string => Apparel) public apparelItems;
+
+    constructor() ERC20("Degen", "DGN") Ownable(msg.sender) {
+      
+    }
+
+    function mintTokens(address account, uint256 span) public onlyOwner {
+        _mint(account, span);
+    }
+
+    function burnTokens(uint256 span) public payable {
+        require(balanceOf(msg.sender) >= span, "Insufficient funds for burning tokens");
+        _burn(msg.sender, span);
+        emit LogMessage("Tokens burned successfully");
+    }
+
+    function transferTokens(address recipient, uint256 span) external {
+        require(balanceOf(msg.sender) >= span, "Insufficient funds for transferring tokens");
+        _transfer(msg.sender, recipient, span);
+    }
+
+    function redeemApparel(string memory apparelType, uint256 numUnits) external payable {
+        require(bytes(apparelType).length > 0, "Apparel type cannot be empty");
+        require(numUnits > 0, "Number of units must be greater than zero");
+
+        // Initialize different apparel items with constant inventory and fees
+        if (apparelItems["Shirt"].apparelFee == 0) {
+            apparelItems["Shirt"] = Apparel("Shirt", 100, 5);
+        }
+
+        if (apparelItems["Jeans"].apparelFee == 0) {
+            apparelItems["Jeans"] = Apparel("Jeans", 250, 10);
+        }
+
+        if (apparelItems["Sneakers"].apparelFee == 0) {
+            apparelItems["Sneakers"] = Apparel("Sneakers", 300, 20);
+        }
+
+        Apparel storage apparel = apparelItems[apparelType];
+
+        require(balanceOf(msg.sender) >= apparel.apparelFee * numUnits, "Insufficient funds for redeeming apparel");
+        require(apparel.apparelInventory >= numUnits, "Insufficient apparel inventory for redemption");
+
+        uint256 totalFee = apparel.apparelFee * numUnits;
+        address user = msg.sender;
+
+        _burn(user, totalFee);
+        apparel.apparelInventory -= numUnits;
+
+        emit LogMessage("Apparel redeemed successfully");
+    }
+
+    function updateApparelFee(string memory apparelType, uint256 newFee) external onlyOwner {
+        require(bytes(apparelType).length > 0, "Apparel type cannot be empty");
+        require(newFee > 0, "New fee must be greater than zero");
+
+        Apparel storage apparel = apparelItems[apparelType];
+        apparel.apparelFee = newFee;
+
+        emit LogMessage("Apparel fee updated successfully");
+    }
+}
